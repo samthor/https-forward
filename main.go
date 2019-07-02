@@ -3,14 +3,13 @@ package main
 import (
 	"context"
 	"crypto/tls"
-	"encoding/base64"
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 
 	"golang.org/x/crypto/acme"
@@ -50,15 +49,15 @@ func main() {
 		if _, ok := config.For(host); !ok {
 			return fmt.Errorf("disallowing host: %v", host)
 		}
-		log.Printf("allowing: %v", host)
 		return nil
 	}
 
 	hostRouter := func(w http.ResponseWriter, r *http.Request) {
-		hc, ok := config.For(r.Host)
+		host := stripPort(r.Host)
+		hc, ok := config.For(host)
 		if !ok {
 			// should never get here: SSL cert should not be generated
-			w.WriteHeader(http.StatusNotFound)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
@@ -70,8 +69,7 @@ func main() {
 		if hc.auth {
 			username, password, ok := r.BasicAuth()
 			if !ok {
-				log.Printf("sending WWW-Authenticate for: %s%s", r.Host, r.URL.Path)
-				v := fmt.Sprintf(`Basic realm="%s"`, r.Host)
+				v := fmt.Sprintf(`Basic realm="%s"`, host)
 				w.Header().Set("WWW-Authenticate", v)
 				http.Error(w, "", http.StatusUnauthorized)
 				return
@@ -111,10 +109,25 @@ func main() {
 	}
 
 	go func() {
-		//h := certManager.HTTPHandler(nil)
-		//log.Fatal(http.ListenAndServe(":http", h))
+		log.Fatal(http.ListenAndServe(":http", http.HandlerFunc(handleRedirect)))
 	}()
 
 	log.Fatal(server.ListenAndServeTLS("", ""))
 }
 
+func handleRedirect(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "GET" || r.Method == "HEAD" {
+		target := "https://" + stripPort(r.Host) + r.URL.RequestURI()
+		http.Redirect(w, r, target, http.StatusFound)
+	} else {
+		http.Error(w, "", http.StatusBadRequest)
+	}
+}
+
+func stripPort(hostport string) string {
+	host, _, err := net.SplitHostPort(hostport)
+	if err != nil {
+		return hostport
+	}
+	return host
+}
