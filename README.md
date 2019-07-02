@@ -2,7 +2,7 @@ This binary hosts a HTTPS server and forwards unecrypted HTTP requests to config
 
 ## Why
 
-You want to host lots of random services publicly on the internet, but don't want to generate certificates for all of them.
+You want to host lots of random and long-lived services publicly on the internet, but don't want to generate certificates for all of them.
 This takes care of that.
 
 ## Usage
