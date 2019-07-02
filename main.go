@@ -12,7 +12,6 @@ import (
 	"net/http/httputil"
 	"os"
 	"os/signal"
-	"strings"
 	"sync"
 	"syscall"
 
@@ -21,7 +20,6 @@ import (
 )
 
 var (
-	flagHost   = flag.String("host", "hh.whistlr.info", "the hostname and subdomains to allow")
 	flagConfig = flag.String("config", "/etc/https-forward", "config file to read")
 )
 
@@ -34,10 +32,11 @@ type configHolder struct {
 	config map[string]string
 }
 
-func (ch *configHolder) For(host string) string {
+func (ch *configHolder) For(host string) (string, bool) {
 	ch.lock.Lock()
 	defer ch.lock.Unlock()
-	return ch.config[host]
+	out, ok := ch.config[host]
+	return out, ok
 }
 
 func (ch *configHolder) Read(f string) error {
@@ -45,6 +44,8 @@ func (ch *configHolder) Read(f string) error {
 	if err != nil {
 		return err
 	}
+
+	var host string
 
 	out := make(map[string]string)
 	lines := bytes.Split(b, []byte("\n"))
@@ -54,11 +55,20 @@ func (ch *configHolder) Read(f string) error {
 			line = line[:comment]
 		}
 		f := bytes.Fields(line)
+
+		// line like ".foo.bar.com", start new hostname
+		if len(f) == 1 && f[0][0] == '.' {
+			host = string(f[0])
+
+			// insert a dummy config for "foo.bar.com"
+			out[host[1:]] = ""
+		}
+
+		// otherwise we expect "blah localhost:8080"
 		if len(f) != 2 || len(f[0]) == 0 {
 			continue
 		}
-
-		out[string(f[0])] = string(f[1])
+		out[string(f[0]) + host] = string(f[1])
 	}
 	log.Printf("read config, got %d entries", len(out))
 
@@ -66,13 +76,6 @@ func (ch *configHolder) Read(f string) error {
 	defer ch.lock.Unlock()
 	ch.config = out
 	return nil
-}
-
-func candForSuffix(host, suffix string) string {
-	if !strings.HasSuffix(host, "."+suffix) {
-		return ""
-	}
-	return host[:len(host)-(len(suffix)+1)]
 }
 
 func main() {
@@ -97,32 +100,16 @@ func main() {
 	}()
 
 	hostPolicy := func(c context.Context, host string) error {
-		if host == *flagHost {
-			return nil
-		} else if cand := candForSuffix(host, *flagHost); cand != "" {
-			target := config.For(cand)
-			if target == "" {
-				return fmt.Errorf("unconfigured host: %v", host)
-			}
-			log.Printf("allowing: %v", host)
-			return nil
+		if _, ok := config.For(host); !ok {
+			return fmt.Errorf("disallowing host: %v", host)
 		}
-		return fmt.Errorf("disallowing host: %v", host)
+		log.Printf("allowing: %v", host)
+		return nil
 	}
 
 	hostRouter := func(w http.ResponseWriter, r *http.Request) {
-		if r.Host == *flagHost {
-			if r.URL.Path == "/" {
-				fmt.Fprintf(w, `¯\_(ツ)_/¯`)
-				return
-			}
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-
-		cand := candForSuffix(r.Host, *flagHost)
-		target := config.For(cand)
-		if target == "" {
+		target, ok := config.For(r.Host)
+		if !ok {
 			// should never get here: SSL cert should not be generated
 			w.WriteHeader(http.StatusNotFound)
 			return
@@ -131,6 +118,16 @@ func main() {
 		// https for a day
 		sec := 86400
 		w.Header().Set("Strict-Transport-Security", fmt.Sprintf("max-age=%d; includeSubDomains", sec))
+
+		// top-level domains don't do anything
+		if target == "" {
+			if r.URL.Path == "/" {
+				fmt.Fprintf(w, `¯\_(ツ)_/¯`)
+			} else {
+				w.WriteHeader(http.StatusNotFound)
+			}
+			return
+		}
 
 		proxy := &httputil.ReverseProxy{
 			Director: func(req *http.Request) {

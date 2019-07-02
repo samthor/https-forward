@@ -1,4 +1,4 @@
 #!/bin/bash
 
-go build -o server *.go
+go build -o https-forward *.go
 
