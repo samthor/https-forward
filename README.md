@@ -1,4 +1,4 @@
-This binary hosts a HTTPS server and forwards unecrypted HTTP requests to other domains, serving and fetching certificates automatically via Let's Encrpyt.
+This binary hosts a HTTPS server and forwards unecrypted HTTP requests to other domains, serving and fetching certificates automatically via Let's Encrypt.
 
 ## Why
 
@@ -35,7 +35,7 @@ test                blah.com          # any URL is valid, not just localhost
 
 ## Notes
 
-This service will only ask Let's Encrpyt for certificates when it can match a domain from the configuration exactly.
+This service will only ask Let's Encrypt for certificates when it can match a domain from the configuration exactly.
 This prevents folks dialing your server and asking for random hostnames.
 
 Having said that, a good way to use this is to set up wildcard DNS record.
