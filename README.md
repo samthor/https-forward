@@ -26,8 +26,8 @@ host.example.com    localhost:8080
 
 .yourdomain.com  # suffix all following
 test                localhost:9000
-basic-auth          localhost:9001    user:pass
-user-only-auth      localhost:9002    user
+basic-auth          localhost:9001    user:pass  # uses HTTP basic auth
+user-only-auth      localhost:9002    user       # .. but doesn't care about password
 
 .anotherdomain.com
 test                blah.com          # any URL is valid
