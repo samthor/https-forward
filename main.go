@@ -1,18 +1,16 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"crypto/tls"
+	"encoding/base64"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
-	"net/http/httputil"
 	"os"
 	"os/signal"
-	"sync"
+	"strings"
 	"syscall"
 
 	"golang.org/x/crypto/acme"
@@ -27,61 +25,10 @@ const (
 	forwardedFor = "X-Forwarded-For"
 )
 
-type configHolder struct {
-	lock   sync.Mutex
-	config map[string]string
-}
-
-func (ch *configHolder) For(host string) (string, bool) {
-	ch.lock.Lock()
-	defer ch.lock.Unlock()
-	out, ok := ch.config[host]
-	return out, ok
-}
-
-func (ch *configHolder) Read(f string) error {
-	b, err := ioutil.ReadFile(f)
-	if err != nil {
-		return err
-	}
-
-	var host string
-
-	out := make(map[string]string)
-	lines := bytes.Split(b, []byte("\n"))
-	for _, line := range lines {
-		comment := bytes.IndexRune(line, '#')
-		if comment > -1 {
-			line = line[:comment]
-		}
-		f := bytes.Fields(line)
-
-		// line like ".foo.bar.com", start new hostname
-		if len(f) == 1 && f[0][0] == '.' {
-			host = string(f[0])
-
-			// insert a dummy config for "foo.bar.com"
-			out[host[1:]] = ""
-		}
-
-		// otherwise we expect "blah localhost:8080"
-		if len(f) != 2 || len(f[0]) == 0 {
-			continue
-		}
-		out[string(f[0]) + host] = string(f[1])
-	}
-	log.Printf("read config, got %d entries", len(out))
-
-	ch.lock.Lock()
-	defer ch.lock.Unlock()
-	ch.config = out
-	return nil
-}
-
 func main() {
 	flag.Parse()
 
-	config := &configHolder{config: make(map[string]string)}
+	config := &configHolder{config: make(map[string]hostConfig)}
 	err := config.Read(*flagConfig)
 	if err != nil {
 		log.Fatalf("could not read config: %v", err)
@@ -108,7 +55,7 @@ func main() {
 	}
 
 	hostRouter := func(w http.ResponseWriter, r *http.Request) {
-		target, ok := config.For(r.Host)
+		hc, ok := config.For(r.Host)
 		if !ok {
 			// should never get here: SSL cert should not be generated
 			w.WriteHeader(http.StatusNotFound)
@@ -119,28 +66,34 @@ func main() {
 		sec := 86400
 		w.Header().Set("Strict-Transport-Security", fmt.Sprintf("max-age=%d; includeSubDomains", sec))
 
-		// top-level domains don't do anything
-		if target == "" {
-			if r.URL.Path == "/" {
-				fmt.Fprintf(w, `¯\_(ツ)_/¯`)
-			} else {
-				w.WriteHeader(http.StatusNotFound)
+		// auth if needed
+		if hc.auth {
+			username, password, ok := r.BasicAuth()
+			if !ok {
+				log.Printf("sending WWW-Authenticate for: %s%s", r.Host, r.URL.Path)
+				v := fmt.Sprintf(`Basic realm="%s"`, r.Host)
+				w.Header().Set("WWW-Authenticate", v)
+				http.Error(w, "", http.StatusUnauthorized)
+				return
 			}
+			if allowed := hc.Allow(username, password); !allowed {
+				http.Error(w, "", http.StatusForbidden)
+				return
+			}
+		}
+
+		// success
+		if hc.proxy != nil {
+			hc.proxy.ServeHTTP(w, r)
 			return
 		}
 
-		proxy := &httputil.ReverseProxy{
-			Director: func(req *http.Request) {
-				log.Printf("req: %v%+v (remote=%v)", r.Host, r.URL.Path, r.RemoteAddr)
-				req.Host = target
-				req.URL.Scheme = "http"
-				req.URL.Host = target
-				if _, ok := req.Header["User-Agent"]; !ok {
-					req.Header.Set("User-Agent", "") // don't allow default value here
-				}
-			},
+		// top-level domains don't do anything
+		if r.URL.Path == "/" {
+			fmt.Fprintf(w, `¯\_(ツ)_/¯`)
+		} else {
+			w.WriteHeader(http.StatusNotFound)
 		}
-		proxy.ServeHTTP(w, r)
 	}
 
 	certManager := autocert.Manager{
@@ -164,3 +117,4 @@ func main() {
 
 	log.Fatal(server.ListenAndServeTLS("", ""))
 }
+
