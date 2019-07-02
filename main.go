@@ -11,12 +11,14 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"golang.org/x/crypto/acme"
 	"golang.org/x/crypto/acme/autocert"
 )
 
 var (
+	flagHSTS   = flag.Duration("hsts", time.Hour * 24, "duration for HSTS header")
 	flagConfig = flag.String("config", "/etc/https-forward", "config file to read")
 )
 
@@ -61,8 +63,8 @@ func main() {
 			return
 		}
 
-		// https for a day
-		sec := 86400
+		// set https-only
+		sec := int((*flagHSTS).Seconds())
 		w.Header().Set("Strict-Transport-Security", fmt.Sprintf("max-age=%d; includeSubDomains", sec))
 
 		// auth if needed
