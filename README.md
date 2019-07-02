@@ -10,7 +10,7 @@ This takes care of that.
 For Ubuntu with systemd, you can:
 
 * Check out this repo
-* Run `./build.sh` (you might need Go dependencies)
+* Run `./build.sh` (you'll need Go >1.12? and dependencies)
 * Modify `https-forward.service` to point to the binary
 * Run `./install.sh` to add to systemd
 
@@ -18,8 +18,8 @@ This service runs on port :80 (just redirects all requests to :443) and :443.
 
 ## Config
 
-By default, this binary reads from `/etc/https-forward`.
-Here's an example config:
+By default, this binary reads from `/etc/https-forward`, but can be configured via `--config path/to/config`.
+Here's an example file:
 
 ```
 host.example.com    localhost:8080
@@ -30,13 +30,14 @@ basic-auth          localhost:9001    user:pass  # uses HTTP basic auth
 user-only-auth      localhost:9002    user       # .. but doesn't care about password
 
 .anotherdomain.com
-test                blah.com          # any URL is valid
+test                blah.com          # any URL is valid, not just localhost
 ```
 
 ## Notes
 
 This service will only ask Let's Encrpyt for certificates when it can match a domain from the configuration exactly.
-This prevents folks dialing your server and asking for arbitrary URLs.
+This prevents folks dialing your server and asking for random hostnames.
 
-Having said that, a good way to use this is to set up wildcard DNS record (e.g., set up `*.yourdomain.com` above to point your server's IP).
+Having said that, a good way to use this is to set up wildcard DNS record.
+For example, you could set up `*.yourdomain.com` to point your server's IP and then use the configuration file to add hosts.
 
