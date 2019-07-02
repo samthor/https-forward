@@ -1,4 +1,4 @@
-This binary hosts a HTTPS server and forwards unecrypted HTTP requests to other domains, serving and fetching certificates automatically via Let's Encrypt.
+This binary hosts a HTTPS server and forwards unecrypted HTTP requests to configurable hosts, transparently fetching certificates [via Let's Encrypt](https://godoc.org/golang.org/x/crypto/acme/autocert).
 
 ## Why
 
