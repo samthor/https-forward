@@ -18,7 +18,8 @@ import (
 )
 
 var (
-	flagHSTS   = flag.Duration("hsts", time.Hour * 24, "duration for HSTS header")
+	flagHSTS   = flag.Duration("hsts", time.Hour*24, "duration for HSTS header")
+	flagCache  = flag.String("cache", "/tmp/autocert", "cert cache directory, blank for memory")
 	flagConfig = flag.String("config", "/etc/https-forward", "config file to read")
 )
 
@@ -98,8 +99,10 @@ func main() {
 
 	certManager := autocert.Manager{
 		Prompt:     autocert.AcceptTOS,
-		Cache:      autocert.DirCache("/tmp/autocert"),
 		HostPolicy: hostPolicy,
+	}
+	if *flagCache != "" {
+		certManager.Cache = autocert.DirCache(*flagCache)
 	}
 	server := &http.Server{
 		Addr:    ":https",
