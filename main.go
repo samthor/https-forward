@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path"
 	"syscall"
 	"time"
 
@@ -19,7 +20,6 @@ import (
 
 var (
 	flagHSTS   = flag.Duration("hsts", time.Hour*24, "duration for HSTS header")
-	flagCache  = flag.String("cache", "/tmp/autocert", "cert cache directory, blank for memory")
 	flagConfig = flag.String("config", "/etc/https-forward", "config file to read")
 )
 
@@ -28,6 +28,21 @@ const (
 )
 
 func main() {
+	var (
+		flagCache *string
+	)
+
+	// configure *flagCache, in SNAP mode just use its semi-permanent cache
+	if snapData := os.Getenv("SNAP_DATA"); snapData != "" {
+		// in Snap mode, always use the cache path
+		flagCachePath := path.Join(snapData, "cache")
+		flagCache = &flagCachePath
+	} else {
+		// ... otherwise this is a real flag
+		flagCache = flag.String("cache", "/tmp/autocert", "cert cache directory, blank for memory")
+	}
+	log.Printf("using cache path: %v", *flagCache)
+
 	flag.Parse()
 
 	config := &configHolder{config: make(map[string]hostConfig)}
@@ -52,13 +67,10 @@ func main() {
 		if _, ok := config.For(host); !ok {
 			return fmt.Errorf("disallowing host: %v", host)
 		}
-		log.Printf("allowing host: %v", host)
 		return nil
 	}
 
 	hostRouter := func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("request: %v%v", r.Host, r.URL.Path)
-
 		host := stripPort(r.Host)
 		hc, ok := config.For(host)
 		if !ok {
@@ -91,8 +103,6 @@ func main() {
 			hc.proxy.ServeHTTP(w, r)
 			return
 		}
-
-		log.Printf("handling dummy top-level request: %v%v", host, r.URL.Path)
 
 		// top-level domains don't do anything
 		if r.URL.Path == "/" {
@@ -128,7 +138,6 @@ func main() {
 
 func handleRedirect(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" || r.Method == "HEAD" {
-		log.Printf("HTTP redir for: %v", r.Host)
 		target := "https://" + stripPort(r.Host) + r.URL.RequestURI()
 		http.Redirect(w, r, target, http.StatusFound)
 	} else {
