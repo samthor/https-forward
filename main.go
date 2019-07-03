@@ -52,10 +52,13 @@ func main() {
 		if _, ok := config.For(host); !ok {
 			return fmt.Errorf("disallowing host: %v", host)
 		}
+		log.Printf("allowing host: %v", host)
 		return nil
 	}
 
 	hostRouter := func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("request: %v%v", r.Host, r.URL.Path)
+
 		host := stripPort(r.Host)
 		hc, ok := config.For(host)
 		if !ok {
@@ -125,6 +128,7 @@ func main() {
 
 func handleRedirect(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" || r.Method == "HEAD" {
+		log.Printf("HTTP redir for: %v", r.Host)
 		target := "https://" + stripPort(r.Host) + r.URL.RequestURI()
 		http.Redirect(w, r, target, http.StatusFound)
 	} else {
