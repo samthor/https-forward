@@ -1,0 +1,21 @@
+name: https-forward
+version: git
+summary: Forwarding HTTPS server
+description: |
+  Hosts HTTPS, transparently fetching certificates, forwarding to configurable HTTP endpoints.
+confinement: strict
+base: core18
+parts:
+  https-forward:
+    plugin: go
+    go-importpath: github.com/samthor/https-forward
+    source: .
+    #source-type: git
+    build-packages:
+      - gcc
+
+apps:
+  https-forward:
+    command: bin/https-forward
+    daemon: simple
+    plugs: [network-bind, network]

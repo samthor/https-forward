@@ -7,6 +7,13 @@ This takes care of that.
 
 ## Usage
 
+### Snap
+
+The snap version is in development.
+You can probably run it with `snapcraft` from within this folder.
+
+### Manually
+
 For Ubuntu with systemd, you can:
 
 * Check out this repo
@@ -41,3 +48,8 @@ This prevents folks dialing your server and asking for random hostnames.
 Having said that, a good way to use this is to set up wildcard DNS record.
 For example, you could set up `*.yourdomain.com` to point your server's IP and then use the configuration file to add hosts.
 
+You can also send the binary `SIGHUP` to reload its config.
+
+If incoming HTTPS requests take a long time and then fail, Let's Encrypt might have throttled you.
+Unfortunatley, the `autocert` client isn't very verbose about this.
+This happens on a per-domain basis (rather than say, from your client IP), so just try using a new one.
