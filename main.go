@@ -89,9 +89,12 @@ func main() {
 			return
 		}
 
+		log.Printf("handling dummy top-level request: %v%v", host, r.URL.Path)
+
 		// top-level domains don't do anything
 		if r.URL.Path == "/" {
-			fmt.Fprintf(w, `¯\_(ツ)_/¯`)
+			fmt.Fprintf(w, "shrug")
+			//fmt.Fprintf(w, `¯\_(ツ)_/¯`)
 		} else {
 			w.WriteHeader(http.StatusNotFound)
 		}
