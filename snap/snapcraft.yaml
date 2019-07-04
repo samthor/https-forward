@@ -18,7 +18,7 @@ Configure this via `/var/snap/https-forward/common/config`, which is empty after
    test                  localhost:9000
    under-example         any-hostname-here.com:9000
 
-Restart or SIGHUP the `https-forward` binary to reread the config file. You can read logs to ensure that the file has been parsed properly:
+Restart or send `SIGHUP` to the binary to reread the config file. You can read logs to ensure that the file has been parsed properly:
 
    sudo journalctl -u snap.https-forward.https-forward
 "
