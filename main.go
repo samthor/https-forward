@@ -49,6 +49,7 @@ func main() {
 	}
 
 	flag.Parse()
+	log.Printf("config=%v, cache=%v", *flagConfig, *flagCache)
 
 	config := &configHolder{config: make(map[string]hostConfig)}
 	err := config.Read(*flagConfig)
