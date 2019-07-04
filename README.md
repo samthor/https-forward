@@ -1,55 +1,36 @@
-This binary hosts a HTTPS server and forwards unecrypted HTTP requests to configurable hosts, transparently fetching certificates [via Let's Encrypt](https://godoc.org/golang.org/x/crypto/acme/autocert).
+Provides a forwarding HTTPS server which transparently fetches and caches certificates [via Let's Encrypt](https://godoc.org/golang.org/x/crypto/acme/autocert).
+This must run on 443 and 80 (just forwards to https://) and can't coexist with any other web server on your machine.
 
 ## Why
 
-You want to host lots of random and long-lived services publicly on the internet, but don't want to generate certificates for all of them.
-This takes care of that.
+This is so you can host random and long-lived services publicly on the internet—perfect services which don't care about certificates or HTTPS at all.
+A good way to use this is to set up a wildcard record like `*.example.com` to point to your server (but don't worry, this service won't respond unless you explicitly define a host in your configuration file).
 
-## Usage
+## Install
 
-### Snap
+You should probably install this via [Snap](https://snapcraft.io/https-forward) if you're using Ubuntu or something like it.
 
-The snap version is in development.
-You can probably run it with `snapcraft` from within this folder.
+Otherwise, you can build the Go binary and it will default to reading its config from `/etc/https-forward` (but see `--help` for flags).
+You should restrict the binary's permissions or run it as `nobody` with a `setcap` configuration that lets it listen on low ports.
 
-### Manually
+## Configuration
 
-For Ubuntu with systemd, you can:
+Configure this via `/var/snap/https-forward/common/config`, which is empty after install. It should be authored like this:
 
-* Check out this repo
-* Run `./build.sh` (you'll need Go >1.12? and dependencies)
-* Modify `https-forward.service` to point to the binary
-* Run `./install.sh` to add to systemd
+   # hostname            forward-to          optional-basic-auth
+   host.example.com      localhost:8080
+   blah.example.com      192.168.86.24:7999  user:pass
+   user-only.example.com localhost:9002      user       # accepts any password
+   
+   # ... specify host with '.' to suffix all following
+   .example.com
+   test                  localhost:9000
+   under-example         any-hostname-here.com:9000
 
-This service runs on port :80 (just redirects all requests to :443) and :443.
-
-## Config
-
-By default, this binary reads from `/etc/https-forward`, but can be configured via `--config path/to/config`.
-Here's an example file:
-
-```
-host.example.com    localhost:8080
-
-.yourdomain.com  # suffix all following
-test                localhost:9000
-basic-auth          localhost:9001    user:pass  # uses HTTP basic auth
-user-only-auth      localhost:9002    user       # .. but doesn't care about password
-
-.anotherdomain.com
-test                blah.com          # any URL is valid, not just localhost
-```
+Restart or send `SIGHUP` to the binary to reread the config file.
 
 ## Notes
 
-This service will only ask Let's Encrypt for certificates when it can match a domain from the configuration exactly.
-This prevents folks dialing your server and asking for random hostnames.
-
-Having said that, a good way to use this is to set up wildcard DNS record.
-For example, you could set up `*.yourdomain.com` to point your server's IP and then use the configuration file to add hosts.
-
-You can also send the binary `SIGHUP` to reload its config.
-
 If incoming HTTPS requests take a long time and then fail, Let's Encrypt might have throttled you.
-Unfortunatley, the `autocert` client isn't very verbose about this.
-This happens on a per-domain basis (rather than say, from your client IP), so just try using a new one.
+Unfortunatley, the `autocert` client in Go isn't very verbose about this.
+This happens on a per-domain basis (rather than say, from your client IP), so just try a new domain (even a subdomain).
