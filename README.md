@@ -17,15 +17,15 @@ You should restrict the binary's permissions or run it as `nobody` with a `setca
 
 Configure this via `/var/snap/https-forward/common/config`, which is empty after install. It should be authored like this:
 
-   # hostname            forward-to          optional-basic-auth
-   host.example.com      localhost:8080
-   blah.example.com      192.168.86.24:7999  user:pass
-   user-only.example.com localhost:9002      user       # accepts any password
+    # hostname            forward-to          optional-basic-auth
+    host.example.com      localhost:8080
+    blah.example.com      192.168.86.24:7999  user:pass
+    user-only.example.com localhost:9002      user       # accepts any password
    
-   # ... specify host with '.' to suffix all following
-   .example.com
-   test                  localhost:9000
-   under-example         any-hostname-here.com:9000
+    # ... specify host with '.' to suffix all following
+    .example.com
+    test                  localhost:9000
+    under-example         any-hostname-here.com:9000
 
 Restart or send `SIGHUP` to the binary to reread the config file.
 
