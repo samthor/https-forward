@@ -3,8 +3,11 @@ This must run on 443 and 80 (just forwards to https://) and can't coexist with a
 
 ## Why
 
-This is so you can host random and long-lived services publicly on the internet—perfect services which don't care about certificates or HTTPS at all.
-A good way to use this is to set up a wildcard record like `*.example.com` to point to your server (but don't worry, this service won't respond unless you explicitly define a host in your configuration file).
+This is so you can host random and long-lived services publicly on the internet—perfect for _other_ services which don't care about certificates or HTTPS at all, and might be provided by Node or Go on a random high port (e.g., some dumb service running on `localhost:8080`).
+
+**Note!** This doesn't magic up domain names.
+You would use this service only if you're able to point DNS records for a domain you own to the server you're running this on, and that it's able to handle incoming requests on port 443 and 80.
+For example, on a home network, you'd have to set up port forwarding on your router.
 
 ## Install
 
