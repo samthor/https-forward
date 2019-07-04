@@ -6,8 +6,7 @@ This must run on 443 and 80 (just forwards to https://) and can't coexist with a
 This is so you can host random and long-lived services publicly on the internet—perfect for _other_ services which don't care about certificates or HTTPS at all, and might be provided by Node or Go on a random high port (e.g., some dumb service running on `localhost:8080`).
 
 **Note!** This doesn't magic up domain names.
-You would use this service only if you're able to point DNS records for a domain you own to the server you're running this on, and that it's able to handle incoming requests on port 443 and 80.
-For example, on a home network, you'd have to set up port forwarding on your router.
+You would use this service only if you're able to point DNS records to the IP address of a machine you're running this on, and that the machine is able to handle incoming requests on port 443 and 80 (e.g., on a home network, you'd have to set up port forwarding on your router).
 
 ## Install
 
@@ -32,6 +31,9 @@ Either way, it should be authored like this:
     .example.com
     test                  localhost:9000
     under-example         any-hostname-here.com:9000
+
+(example.com used above purely as an _example_.
+You'd replace it with a domain name you controlled, preferably with a [wildcard DNS](https://en.wikipedia.org/wiki/Wildcard_DNS_record) record.)
 
 Restart or send `SIGHUP` to the binary to reread the config file.
 
