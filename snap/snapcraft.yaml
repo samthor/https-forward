@@ -4,7 +4,9 @@ summary: A forwarding HTTPS server using Let's Encrypt
 license: Apache-2.0
 description: "Provides a forwarding HTTPS server which transparently fetches and caches certificates via Let's Encrypt. This must run on 443 and 80 (just forwards to https://) and can't coexist with any other web server on your machine.
 
-*Why?* This is so you can host random and long-lived services publicly on the internet—perfect services which don't care about certificates or HTTPS at all. A good way to use this is to set up a wildcard record like `*.example.com` to point to your server (but don't worry, this service won't respond unless you explicitly define a host in your configuration file).
+**Why?** This is so you can host random and long-lived services publicly on the internet—perfect for _other_ services which don't care about certificates or HTTPS at all, and might be provided by Node or Go on a random high port (e.g., some dumb service running on `localhost:8080`).
+
+**Note!** This doesn't magic up domain names. You would use this service only if you're able to point DNS records to the IP address of a machine you're running this on, and that the machine is able to handle incoming requests on port 443 and 80 (e.g., on a home network, you'd have to set up port forwarding on your router).
 
 Configure this via `/var/snap/https-forward/common/config`, which is empty after install. It should be authored like this:
 
@@ -18,7 +20,10 @@ Configure this via `/var/snap/https-forward/common/config`, which is empty after
    test                  localhost:9000
    under-example         any-hostname-here.com:9000
 
-Restart or send `SIGHUP` to the binary to reread the config file. You can read logs to ensure that the file has been parsed properly:
+(example.com used above purely as an _example_.
+You'd replace it with a domain name you controlled, preferably with a wildcard DNS (https://en.wikipedia.org/wiki/Wildcard_DNS_record) record.)
+
+Restart or SIGHUP the `https-forward` binary to reread the config file. You can read logs to ensure that the file has been parsed properly:
 
    sudo journalctl -u snap.https-forward.https-forward
 "
