@@ -1,10 +1,28 @@
 name: https-forward
 version: git
-summary: Forwarding HTTPS server
-description: |
-  Hosts HTTPS, transparently fetching certificates, forwarding to configurable HTTP endpoints. |
-  Configuration file at- /var/snap/https-forward/common/config |
-  For more information, see- https://github.com/samthor/https-forward
+summary: A forwarding HTTPS server using Let's Encrypt
+license: Apache-2.0
+description: "Provides a forwarding HTTPS server which transparently fetches and caches certificates via Let's Encrypt. This must run on 443 and 80 (just forwards to https://) and can't coexist with any other web server on your machine.
+
+*Why?* This is so you can host random and long-lived services publicly on the internet—perfect services which don't care about certificates or HTTPS at all. A good way to use this is to set up a wildcard record like `*.example.com` to point to your server (but don't worry, this service won't respond unless you explicitly define a host in your configuration file).
+
+Configure this via `/var/snap/https-forward/common/config`, which is empty after install. It should be authored like this:
+
+   # hostname            forward-to          optional-basic-auth
+   host.example.com      localhost:8080
+   blah.example.com      192.168.86.24:7999  user:pass
+   user-only.example.com localhost:9002      user       # accepts any password
+   
+   # ... specify host with '.' to suffix all following
+   .example.com
+   test                  localhost:9000
+   under-example         any-hostname-here.com:9000
+
+Restart or SIGHUP the `https-forward` binary to reread the config file. You can read logs to ensure that the file has been parsed properly:
+
+   sudo journalctl -u snap.https-forward.https-forward
+"
+
 confinement: strict
 base: core18
 parts:
