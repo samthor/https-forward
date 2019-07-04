@@ -106,8 +106,7 @@ func main() {
 
 		// top-level domains don't do anything
 		if r.URL.Path == "/" {
-			fmt.Fprintf(w, "shrug")
-			//fmt.Fprintf(w, `¯\_(ツ)_/¯`)
+			fmt.Fprintf(w, `¯\_(ツ)_/¯`)
 		} else {
 			w.WriteHeader(http.StatusNotFound)
 		}
