@@ -23,7 +23,7 @@ Configure this via `/var/snap/https-forward/common/config`, which is empty after
 (example.com used above purely as an _example_.
 You'd replace it with a domain name you controlled, preferably with a wildcard DNS (https://en.wikipedia.org/wiki/Wildcard_DNS_record) record.)
 
-Restart or SIGHUP the `https-forward` binary to reread the config file. You can read logs to ensure that the file has been parsed properly:
+Restart with `snap restart https-forward` to reread the config file. You can read logs to ensure that the file has been parsed properly:
 
    sudo journalctl -u snap.https-forward.https-forward
 "
