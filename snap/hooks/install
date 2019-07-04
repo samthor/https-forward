@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# ensure config file is available
+touch "$SNAP_COMMON/config"
+echo "https-forward config file at: $SNAP_COMMON/config"

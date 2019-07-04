@@ -19,8 +19,7 @@ import (
 )
 
 var (
-	flagHSTS   = flag.Duration("hsts", time.Hour*24, "duration for HSTS header")
-	flagConfig = flag.String("config", "/etc/https-forward", "config file to read")
+	flagHSTS = flag.Duration("hsts", time.Hour*24, "duration for HSTS header")
 )
 
 const (
@@ -29,19 +28,25 @@ const (
 
 func main() {
 	var (
-		flagCache *string
+		flagConfig *string
+		flagCache  *string
 	)
+
+	// configure flagConfig, in snap use common across revisions
+	if snapCommon := os.Getenv("SNAP_COMMON"); snapCommon != "" {
+		configPath := path.Join(snapCommon, "config")
+		flagConfig = &configPath
+	} else {
+		flagConfig = flag.String("config", "/etc/https-forward", "config file to read")
+	}
 
 	// configure *flagCache, in SNAP mode just use its semi-permanent cache
 	if snapData := os.Getenv("SNAP_DATA"); snapData != "" {
-		// in Snap mode, always use the cache path
-		flagCachePath := path.Join(snapData, "cache")
-		flagCache = &flagCachePath
+		cachePath := path.Join(snapData, "cache")
+		flagCache = &cachePath
 	} else {
-		// ... otherwise this is a real flag
 		flagCache = flag.String("cache", "/tmp/autocert", "cert cache directory, blank for memory")
 	}
-	log.Printf("using cache path: %v", *flagCache)
 
 	flag.Parse()
 

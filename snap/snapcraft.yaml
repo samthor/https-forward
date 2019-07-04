@@ -2,7 +2,9 @@ name: https-forward
 version: git
 summary: Forwarding HTTPS server
 description: |
-  Hosts HTTPS, transparently fetching certificates, forwarding to configurable HTTP endpoints.
+  Hosts HTTPS, transparently fetching certificates, forwarding to configurable HTTP endpoints. |
+  Configuration file at- /var/snap/https-forward/common/config |
+  For more information, see- https://github.com/samthor/https-forward
 confinement: strict
 base: core18
 parts:
