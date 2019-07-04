@@ -10,12 +10,15 @@ A good way to use this is to set up a wildcard record like `*.example.com` to po
 
 You should probably install this via [Snap](https://snapcraft.io/https-forward) if you're using Ubuntu or something like it.
 
-Otherwise, you can build the Go binary and it will default to reading its config from `/etc/https-forward` (but see `--help` for flags).
-You should restrict the binary's permissions or run it as `nobody` with a `setcap` configuration that lets it listen on low ports.
+Otherwise, you can build the Go binary and see `--help` for flags.
+You _should_ restrict the binary's permissions or run it as `nobody` with a `setcap` configuration that lets it listen on low ports.
 
 ## Configuration
 
-Configure this via `/var/snap/https-forward/common/config`, which is empty after install. It should be authored like this:
+If you're using Snap, the configuration file is at `/var/snap/https-forward/common/config` (which is empty after install).
+Otherwise, the default configuration is read at `/etc/https-forward`.
+
+Either way, it should be authored like this:
 
     # hostname            forward-to          optional-basic-auth
     host.example.com      localhost:8080
