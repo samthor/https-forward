@@ -2,7 +2,9 @@
 [![https-forward](https://snapcraft.io//https-forward/trending.svg?name=0)](https://snapcraft.io/https-forward)
 
 Provides a forwarding HTTPS server which transparently fetches and caches certificates [via Let's Encrypt](https://godoc.org/golang.org/x/crypto/acme/autocert).
-This must run on 443 and 80 (just forwards to https://) and can't coexist with any other web server on your machine.
+This must run on 443 and 80 (HTTP just forwards to https://) and can't coexist with any other web server on your machine.
+
+This is a bit like a forwarding SSH reverse proxy for services that can be seen by the machine you're running https-forward on.
 
 ## Why
 
@@ -43,5 +45,5 @@ Restart or send `SIGHUP` to the binary to reread the config file.
 ## Notes
 
 If incoming HTTPS requests take a long time and then fail, Let's Encrypt might have throttled you.
-Unfortunatley, the `autocert` client in Go isn't very verbose about this.
+Unfortunately, the `autocert` client in Go isn't very verbose about this.
 This happens on a per-domain basis (rather than say, from your client IP), so just try a new domain (even a subdomain).
