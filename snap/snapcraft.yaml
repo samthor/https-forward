@@ -35,7 +35,7 @@ parts:
     plugin: go
     go-importpath: github.com/samthor/https-forward
     source: .
-    #source-type: git
+    source-type: git
     build-packages:
       - gcc
 
