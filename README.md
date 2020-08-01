@@ -47,3 +47,9 @@ Restart or send `SIGHUP` to the binary to reread the config file.
 If incoming HTTPS requests take a long time and then fail, Let's Encrypt might have throttled you.
 Unfortunately, the `autocert` client in Go isn't very verbose about this.
 This happens on a per-domain basis (rather than say, from your client IP), so just try a new domain (even a subdomain).
+
+## Release Instructions
+
+Follow the guide for [Go applications](https://snapcraft.io/docs/go-applications).
+Run `snapcraft` and it will probably just build.
+
