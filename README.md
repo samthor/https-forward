@@ -1,6 +1,8 @@
 [![https-forward](https://snapcraft.io//https-forward/badge.svg)](https://snapcraft.io/https-forward)
 [![https-forward](https://snapcraft.io//https-forward/trending.svg?name=0)](https://snapcraft.io/https-forward)
 
+(Watch [a video about https-forward](https://www.youtube.com/watch?v=CL0fC1hD54M)!)
+
 Provides a forwarding HTTPS server which transparently fetches and caches certificates [via Let's Encrypt](https://godoc.org/golang.org/x/crypto/acme/autocert).
 This must run on 443 and 80 (HTTP just forwards to https://) and can't coexist with any other web server on your machine.
 
