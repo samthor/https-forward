@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
 	"flag"
 	"fmt"
 	"log"
@@ -14,7 +13,6 @@ import (
 	"syscall"
 	"time"
 
-	"golang.org/x/crypto/acme"
 	"golang.org/x/crypto/acme/autocert"
 )
 
@@ -128,10 +126,7 @@ func main() {
 	server := &http.Server{
 		Addr:    ":https",
 		Handler: http.HandlerFunc(hostRouter),
-		TLSConfig: &tls.Config{
-			GetCertificate: certManager.GetCertificate,
-			NextProtos:     []string{acme.ALPNProto},
-		},
+		TLSConfig: certManager.TLSConfig(),
 	}
 
 	go func() {
