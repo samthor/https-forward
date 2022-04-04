@@ -110,7 +110,15 @@ func main() {
 
 		// top-level domains don't do anything
 		if r.URL.Path == "/" {
-			fmt.Fprintf(w, `¯\_(ツ)_/¯`)
+			fmt.Fprintf(w, `<!DOCTYPE html>
+<html>
+<head>
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<meta name="google" value="notranslate" />
+</head>
+<body>
+<code>¯\_(ツ)_/¯</code>
+</body>`)
 		} else {
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -124,8 +132,8 @@ func main() {
 		certManager.Cache = autocert.DirCache(*flagCache)
 	}
 	server := &http.Server{
-		Addr:    ":https",
-		Handler: http.HandlerFunc(hostRouter),
+		Addr:      ":https",
+		Handler:   http.HandlerFunc(hostRouter),
 		TLSConfig: certManager.TLSConfig(),
 	}
 
