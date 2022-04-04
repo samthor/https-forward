@@ -20,10 +20,6 @@ var (
 	flagHSTS = flag.Duration("hsts", time.Hour*24, "duration for HSTS header")
 )
 
-const (
-	forwardedFor = "X-Forwarded-For"
-)
-
 func main() {
 	var (
 		flagConfig *string
