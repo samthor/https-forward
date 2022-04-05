@@ -34,10 +34,17 @@ Either way, it should be authored like this:
     blah.example.com      192.168.86.24:7999  user:pass
     user-only.example.com localhost:9002      user       # accepts any password
    
-    # ... specify host with '.' to suffix all following
+    # Specify host with '.' to suffix all following
     .example.com
     test                  localhost:9000
     under-example         any-hostname-here.com:9000
+
+    # You can include ? or * to glob-match domain parts (this does NOT match "-")
+    *.example.com         localhost:9000
+    test-v?*.example.com  localhost:9999    # matches "test-v1", "test-v100", but NOT "test-v" or "test-vx-123"
+
+    # serves a blank dummy page (but generate https cert, perhaps as a placeholder)
+    serves-nothing.example.com
 
 (example.com used above purely as an _example_.
 You'd replace it with a domain name you controlled, preferably with a [wildcard DNS](https://en.wikipedia.org/wiki/Wildcard_DNS_record) record.)
@@ -49,6 +56,8 @@ Restart or send `SIGHUP` to the binary to reread the config file.
 If incoming HTTPS requests take a long time and then fail, Let's Encrypt might have throttled you.
 Unfortunately, the `autocert` client in Go isn't very verbose about this.
 This happens on a per-domain basis (rather than say, from your client IP), so just try a new domain (even a subdomain).
+
+This service only forwards _to_ `http://` hosts, not secure hosts.
 
 ## Release Instructions
 

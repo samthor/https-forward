@@ -2,10 +2,13 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/httputil"
+	"regexp"
+	"strings"
 	"sync"
 )
 
@@ -28,15 +31,30 @@ func (hc *hostConfig) Allow(username, password string) bool {
 }
 
 type configHolder struct {
-	lock   sync.Mutex
-	config map[string]hostConfig
+	lock        sync.Mutex
+	configFixed map[string]*hostConfig
+	configMatch []func(string) *hostConfig
+	transport   *http.Transport
 }
 
-func (ch *configHolder) For(host string) (hostConfig, bool) {
+func (ch *configHolder) For(host string) (*hostConfig, bool) {
 	ch.lock.Lock()
 	defer ch.lock.Unlock()
-	out, ok := ch.config[host]
-	return out, ok
+
+	out, ok := ch.configFixed[host]
+	if ok {
+		return out, true
+	}
+
+	for _, m := range ch.configMatch {
+		config := m(host)
+		if config != nil {
+			ch.configFixed[host] = config
+			return config, true
+		}
+	}
+
+	return nil, false
 }
 
 func (ch *configHolder) Read(f string) error {
@@ -47,7 +65,12 @@ func (ch *configHolder) Read(f string) error {
 
 	var suffix string
 
-	out := make(map[string]hostConfig)
+	ch.lock.Lock()
+	defer ch.lock.Unlock()
+
+	ch.configFixed = make(map[string]*hostConfig)
+	ch.configMatch = make([]func(string) *hostConfig, 0)
+
 	lines := bytes.Split(b, []byte("\n"))
 	for _, line := range lines {
 		comment := bytes.IndexRune(line, '#')
@@ -59,11 +82,12 @@ func (ch *configHolder) Read(f string) error {
 		// line like ".foo.bar.com", start new hostname group
 		if len(f) == 1 && f[0][0] == '.' {
 			suffix = string(f[0])
-			host := suffix[1:]
-
-			// insert a dummy config for "foo.bar.com"
-			out[host] = hostConfig{}
-			log.Printf("matched top-level: %s", host)
+			if suffix == "." {
+				suffix = ""
+				log.Printf("config- reset suffix")
+			} else {
+				log.Printf("config- found suffix: %s", suffix)
+			}
 			continue
 		}
 
@@ -72,9 +96,7 @@ func (ch *configHolder) Read(f string) error {
 			continue
 		}
 		qualified := string(f[0]) + suffix
-		hc := hostConfig{
-			target: string(f[1]),
-		}
+		hc := &hostConfig{}
 
 		if len(f) > 2 {
 			parts := bytes.SplitN(f[2], []byte{byte(':')}, 2)
@@ -85,26 +107,82 @@ func (ch *configHolder) Read(f string) error {
 			hc.auth = true
 		}
 
-		hc.proxy = buildProxy(hc.target, hc.auth)
+		if len(f) > 1 {
+			hc.target = string(f[1])
+			hc.proxy = buildProxy(hc.target, hc.auth, ch.transport)
+		}
 
-		out[qualified] = hc
-		log.Printf("matched: %s => %s", qualified, hc.target)
+		if !isValidDomain(qualified) {
+			log.Printf("config- skipping invalid domain: %s", qualified)
+			continue
+		}
+
+		match := buildMatch(qualified)
+		matchHostConfig := func(q string) *hostConfig {
+			if match(q) {
+				return hc
+			}
+			return nil
+		}
+		ch.configMatch = append(ch.configMatch, matchHostConfig)
+		log.Printf("config- matched: %s => %s", qualified, hc.target)
 	}
-	log.Printf("read config, got %d entries", len(out))
+	log.Printf("config- DONE, %d valid entries", len(ch.configMatch))
 
-	ch.lock.Lock()
-	defer ch.lock.Unlock()
-	ch.config = out
 	return nil
 }
 
-func buildProxy(target string, auth bool) *httputil.ReverseProxy {
+// Checks domain for validity. Allows * and ? for globbing.
+func isValidDomain(q string) bool {
+	index := strings.IndexFunc(q, func(r rune) bool {
+		ok := (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '.' || r == '-' || r == '*' || r == '?'
+		return !ok
+	})
+	return index == -1
+}
+
+func buildMatch(q string) func(string) bool {
+	if !strings.Contains(q, "*") {
+		return func(check string) bool {
+			return check == q
+		}
+	}
+
+	re := q
+	re = strings.ReplaceAll(re, ".", "\\.")
+	re = strings.ReplaceAll(re, "?", "[a-z0-9]")   // this means a single char
+	re = strings.ReplaceAll(re, "*", "[a-z0-9]*?") // this means any number of chars
+	re = fmt.Sprintf("^%s$", re)
+
+	log.Printf("compiling regexp for domain=%v re=%v", q, re)
+
+	r := regexp.MustCompile(re)
+
+	return func(check string) bool {
+		return r.MatchString(check)
+	}
+}
+
+func buildProxy(target string, auth bool, transport http.RoundTripper) *httputil.ReverseProxy {
 	return &httputil.ReverseProxy{
+		Transport: transport,
 		Director: func(req *http.Request) {
-			log.Printf("req: %v%+v (remote=%v)", req.Host, req.URL.Path, req.RemoteAddr)
-			req.Host = target
-			req.URL.Scheme = "http"
-			req.URL.Host = target
+			// nb. go1.18 at least only adds "X-Forwarded-For", nothing else
+			req.Header.Set("X-Forwarded-Host", req.Host)
+
+			forwardParts := []string{
+				"proto=https",
+				fmt.Sprintf("host=%s", req.Host),
+			}
+			if req.RemoteAddr != "" {
+				isV6 := !strings.Contains(req.RemoteAddr, ".")
+				if isV6 {
+					forwardParts = append(forwardParts, fmt.Sprintf("for=\"%s\"", req.RemoteAddr))
+				} else {
+					forwardParts = append(forwardParts, fmt.Sprintf("for=%s", req.RemoteAddr))
+				}
+			}
+			req.Header.Add("Forwarded", strings.Join(forwardParts, ";"))
 
 			if auth {
 				// if we use auth, don't pass on Authoriation header
@@ -113,6 +191,10 @@ func buildProxy(target string, auth bool) *httputil.ReverseProxy {
 			if _, ok := req.Header["User-Agent"]; !ok {
 				req.Header.Set("User-Agent", "") // don't allow default value here
 			}
+
+			req.Host = target
+			req.URL.Scheme = "http"
+			req.URL.Host = target
 		},
 	}
 }

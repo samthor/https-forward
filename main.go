@@ -17,7 +17,8 @@ import (
 )
 
 var (
-	flagHSTS = flag.Duration("hsts", time.Hour*24, "duration for HSTS header")
+	flagHSTS    = flag.Duration("hsts", time.Hour*24, "duration for HSTS header")
+	flagTimeout = flag.Duration("timeout", time.Minute, "timeout for proxied hosts")
 )
 
 func main() {
@@ -45,7 +46,11 @@ func main() {
 	flag.Parse()
 	log.Printf("config=%v, cache=%v", *flagConfig, *flagCache)
 
-	config := &configHolder{config: make(map[string]hostConfig)}
+	config := &configHolder{
+		transport: &http.Transport{
+			ResponseHeaderTimeout: *flagTimeout,
+		},
+	}
 	err := config.Read(*flagConfig)
 	if err != nil {
 		log.Fatalf("could not read config: %v", err)
@@ -98,6 +103,8 @@ func main() {
 			}
 		}
 
+		log.Printf("req: https://%v%v (remote=%v)", r.Host, r.URL.Path, r.RemoteAddr)
+
 		// success
 		if hc.proxy != nil {
 			hc.proxy.ServeHTTP(w, r)
@@ -109,11 +116,12 @@ func main() {
 			fmt.Fprintf(w, `<!DOCTYPE html>
 <html>
 <head>
-	<meta name="viewport" content="width=device-width, initial-scale=1" />
-	<meta name="google" value="notranslate" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="google" value="notranslate" />
 </head>
 <body>
-<code>¯\_(ツ)_/¯</code>
+<div align="center"><code>¯\_(ツ)_/¯</code></div>
+<!-- powered by https://github.com/samthor/https-forward -->
 </body>`)
 		} else {
 			w.WriteHeader(http.StatusNotFound)
