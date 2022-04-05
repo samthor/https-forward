@@ -4,20 +4,18 @@
 (Watch [a video about https-forward](https://www.youtube.com/watch?v=CL0fC1hD54M)!)
 
 Provides a forwarding HTTPS server which transparently fetches and caches certificates [via Let's Encrypt](https://godoc.org/golang.org/x/crypto/acme/autocert).
-This must run on 443 and 80 (HTTP just forwards to https://) and can't coexist with any other web server on your machine.
-
-This is a bit like a forwarding SSH reverse proxy for services that can be seen by the machine you're running https-forward on.
+This must run on 443 and 80 (http:// just forwards to https://, no forwarding happens unencrypted) and can't coexist with any other web server on your machine.
 
 ## Why
 
-This is so you can host random and long-lived services publicly on the internet—perfect for _other_ services which don't care about certificates or HTTPS at all, and might be provided by Node or Go on a random high port (e.g., some dumb service running on `localhost:8080`).
+This is so you can host random and long-lived services publicly on the internet—perfect for _other_ services which are served on http://, don't care about certificates or HTTPS at all, and might be provided by Node or Go on a random high port (e.g., some dumb service running on `localhost:8080`).
 
 **Note!** This doesn't magic up domain names.
 You would use this service only if you're able to point DNS records to the IP address of a machine you're running this on, and that the machine is able to handle incoming requests on port 443 and 80 (e.g., on a home network, you'd have to set up port forwarding on your router).
 
 ## Install
 
-You should probably install this via [Snap](https://snapcraft.io/https-forward) if you're using Ubuntu or something like it.
+⚠️ You should probably install this via [Snap](https://snapcraft.io/https-forward) if you're using Ubuntu or something like it.
 
 Otherwise, you can build the Go binary and see `--help` for flags.
 You _should_ restrict the binary's permissions or run it as `nobody` with a `setcap` configuration that lets it listen on low ports.
@@ -38,6 +36,9 @@ Either way, it should be authored like this:
     .example.com
     test                  localhost:9000
     under-example         any-hostname-here.com:9000
+    
+    # Clear the current suffix with a single "." (otherwise below would be "*.example.com.example.com")
+    .
 
     # You can include ? or * to glob-match domain parts (this does NOT match "-")
     *.example.com         localhost:9000
@@ -47,7 +48,7 @@ Either way, it should be authored like this:
     serves-nothing.example.com
 
 (example.com used above purely as an _example_.
-You'd replace it with a domain name you controlled, preferably with a [wildcard DNS](https://en.wikipedia.org/wiki/Wildcard_DNS_record) record.)
+You'd replace it with a domain name you controlled, preferably with a [wildcard DNS](https://en.wikipedia.org/wiki/Wildcard_DNS_record) record like `*.example.com`.)
 
 Restart or send `SIGHUP` to the binary to reread the config file.
 
