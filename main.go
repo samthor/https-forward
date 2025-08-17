@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"path"
+	"strings"
 	"syscall"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 var (
 	flagHSTS    = flag.Duration("hsts", time.Hour*24, "duration for HSTS header")
 	flagTimeout = flag.Duration("timeout", time.Minute, "timeout for proxied hosts")
+	flagLog     = flag.Bool("log", false, "set to log all network requests")
 )
 
 func main() {
@@ -103,7 +105,9 @@ func main() {
 			}
 		}
 
-		log.Printf("req: https://%v%v (remote=%v)", r.Host, r.URL.Path, r.RemoteAddr)
+		if *flagLog {
+			log.Printf("req: https://%v%v (remote=%v)", r.Host, r.URL.Path, r.RemoteAddr)
+		}
 
 		// success
 		if hc.proxy != nil {
@@ -112,7 +116,7 @@ func main() {
 		}
 
 		// top-level domains don't do anything
-		if r.URL.Path == "/" {
+		if r.URL.Path == "/" && strings.Contains(r.Header.Get("Accept"), "text/html") {
 			fmt.Fprintf(w, `<!DOCTYPE html>
 <html>
 <head>
@@ -142,7 +146,7 @@ func main() {
 	}
 
 	go func() {
-		log.Fatal(http.ListenAndServe(":http", http.HandlerFunc(handleRedirect)))
+		log.Fatal(http.ListenAndServe(":http", certManager.HTTPHandler(http.HandlerFunc(handleRedirect))))
 	}()
 
 	log.Fatal(server.ListenAndServeTLS("", ""))
