@@ -28,13 +28,16 @@ Restart with `snap restart https-forward` to reread the config file. You can rea
    sudo journalctl -u snap.https-forward.https-forward
 "
 
+type: app
 confinement: strict
-base: core18
+base: core20
 parts:
   https-forward:
     plugin: go
-    go-importpath: github.com/samthor/https-forward
+      # source: https://github.com/samthor/https-forward
+      #go-importpath: github.com/samthor/https-forward
     source: .
+    build-snaps: [go/latest/stable]
     source-type: git
     build-packages:
       - gcc
