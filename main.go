@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"log"
@@ -21,6 +22,7 @@ var (
 	flagHSTS    = flag.Duration("hsts", time.Hour*24, "duration for HSTS header")
 	flagTimeout = flag.Duration("timeout", time.Minute, "timeout for proxied hosts")
 	flagLog     = flag.Bool("log", false, "set to log all network requests")
+	flagEmail   = flag.String("email", "", "email to provide to LE")
 )
 
 func main() {
@@ -74,13 +76,24 @@ func main() {
 		if _, ok := config.For(host); !ok {
 			return fmt.Errorf("disallowing host: %v", host)
 		}
+		if *flagLog {
+			log.Printf("allowing host: %v", host)
+		}
 		return nil
 	}
 
 	hostRouter := func(w http.ResponseWriter, r *http.Request) {
+		if *flagLog {
+			log.Printf("req: https://%v%v (remote=%v)", r.Host, r.URL.Path, r.RemoteAddr)
+		}
+
 		host := stripPort(r.Host)
 		hc, ok := config.For(host)
 		if !ok {
+			if *flagLog {
+				log.Printf("bad host lookup: %v", host)
+			}
+
 			// should never get here: SSL cert should not be generated
 			w.WriteHeader(http.StatusInternalServerError)
 			return
@@ -103,10 +116,6 @@ func main() {
 				http.Error(w, "", http.StatusForbidden)
 				return
 			}
-		}
-
-		if *flagLog {
-			log.Printf("req: https://%v%v (remote=%v)", r.Host, r.URL.Path, r.RemoteAddr)
 		}
 
 		// success
@@ -132,33 +141,52 @@ func main() {
 		}
 	}
 
+	// setup normal certManager
 	certManager := autocert.Manager{
 		Prompt:     autocert.AcceptTOS,
 		HostPolicy: hostPolicy,
+		Email:      *flagEmail,
 	}
 	if *flagCache != "" {
 		certManager.Cache = autocert.DirCache(*flagCache)
 	}
-	server := &http.Server{
-		Addr:      ":https",
-		Handler:   http.HandlerFunc(hostRouter),
-		TLSConfig: certManager.TLSConfig(),
+
+	// configure tlsConfig to allow self-signed on "localhost" which comes from e.g. Cloudflare
+	tlsConfig := certManager.TLSConfig()
+	getCertificate := tlsConfig.GetCertificate
+	tlsConfig.GetCertificate = func(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
+		if hello.ServerName == "localhost" {
+			if *flagLog {
+				log.Printf("using self-signed cert")
+			}
+			return &selfSignedCert, nil
+		}
+		if *flagLog {
+			log.Printf("tls init %+v", hello)
+		}
+		return getCertificate(hello)
 	}
 
+	// include certManager's HTTP in https?
+	server := &http.Server{
+		Addr:      ":https",
+		Handler:   certManager.HTTPHandler(http.HandlerFunc(hostRouter)),
+		TLSConfig: tlsConfig,
+	}
+
+	// must call this outside handler; _enables_ http-01
+	autocertHTTPHandler := certManager.HTTPHandler(nil) // automatically redirects
 	go func() {
-		log.Fatal(http.ListenAndServe(":http", certManager.HTTPHandler(http.HandlerFunc(handleRedirect))))
+		var h http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
+			if *flagLog {
+				log.Printf("http req: http://%v%v (remote=%v)", r.Host, r.URL.Path, r.RemoteAddr)
+			}
+			autocertHTTPHandler.ServeHTTP(w, r)
+		}
+		log.Fatal(http.ListenAndServe(":http", h))
 	}()
 
 	log.Fatal(server.ListenAndServeTLS("", ""))
-}
-
-func handleRedirect(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "GET" || r.Method == "HEAD" {
-		target := "https://" + stripPort(r.Host) + r.URL.RequestURI()
-		http.Redirect(w, r, target, http.StatusFound)
-	} else {
-		http.Error(w, "", http.StatusBadRequest)
-	}
 }
 
 func stripPort(hostport string) string {
